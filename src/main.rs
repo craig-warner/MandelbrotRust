@@ -1,9 +1,16 @@
+// TODO: Bits per color control
+// TODO: Color Preference
+// TODO: Color Preference
 extern crate serde_hjson;
 extern crate bmp;
 extern crate ndarray;
+extern crate colored; // not needed in Rust 2018
 
 use bmp::{Image,Pixel};
-//use serde_hjson::Value;
+use serde_hjson::Value;
+use clap::{crate_version,App,Arg};
+use std::process;b
+use colored::*;
 //use ndarray::Array2;
 
 #[derive(Copy, Clone)]
@@ -18,6 +25,7 @@ struct Mandelbrot{
   min_x: f64,
   min_y: f64,
   length: f64,
+  theshold: f64,
   bits_per_color : u32,
   num_iterations : u64,
   pixels: Vec<RGBDot>
@@ -44,25 +52,22 @@ impl RGBDot{
 }
 
 impl Mandelbrot{
-    pub fn new(size:u32) -> Mandelbrot {
+    pub fn new(size:u32,length:f64, x:f64,y:f64,theshold:f64,bits_per_color:u32) -> Mandelbrot {
         Mandelbrot {
             pixels_per_side: size,
-            min_x: -1.0,
-            min_y: 1.5,
-            length: 3.0,
-            bits_per_color : 4,
-            num_iterations : 1<<(3*4),
+            min_x: x - length/2.0,
+            min_y: y - length/2.0,
+            length: length,
+            theshold: theshold,
+            bits_per_color : bits_per_color,
+            num_iterations : 1<<(3*bits_per_color),
             pixels: Vec::new() 
         }
     }
-    pub fn init(&mut self, size:u32) {
+    pub fn init(&mut self) {
         let mut dot = RGBDot::new();
-        self.min_x = -1.0;
-        self.min_y = -1.5;
-        self.length = 3.0; 
-        self.bits_per_color = 4;
-        self.num_iterations = 1<<(self.bits_per_color*3);
-        for _i in 0..size {
+        let size = self.pixels_per_side;
+        for _i in 0..size{
             for _j in 0..size {
                 dot.set_from_3u32(10,10,10);
                 self.pixels.push(dot);
@@ -105,12 +110,11 @@ double threshold;
 }
 */
 
-fn get_color (c: f64, di : f64, num_iterations: u64) -> u64 {
+fn get_color (c: f64, di : f64, num_iterations: u64, threshold:f64) -> u64 {
 let mut a:f64 = 0.0;
 let mut bi:f64 = 0.0;
 let mut _new_a:f64 = 0.0;
 let mut _new_bi:f64 = 0.0;
-let threshold: f64 = 1000.0;
 
   /* println!("c:%5.3f di:%5.3f\n",c,di); */
   for i in 0..num_iterations {
@@ -126,7 +130,7 @@ let threshold: f64 = 1000.0;
     }
     /* printf("%d: %5.3f\n",i,a); */
     if a>threshold {
-      println!("Debug: icolor {} a {}", i,a);
+      //println!("Debug: icolor {} a {}", i,a);
       return i as u64;
     }
     // DEBUG
@@ -205,9 +209,10 @@ fn color_image(m: &mut Mandelbrot) {
         else if ix == 0 {
             di = di + increment;
         }
-        color = get_color (c,di,m.num_iterations);
+        color = get_color (c,di,m.num_iterations,m.theshold);
 
-        println!("Debug: color {}", color);
+        // DEBUG
+        //println!("Debug: color {}", color);
 
         dot.set_from_u64(color);
         let index = (iy*num_pixels + ix) as usize;
@@ -267,41 +272,218 @@ fn print_image(m:&mut Mandelbrot) {
   }
 }
 
-fn make_bmp_file() {
-    let mut m = Mandelbrot::new(64);
-    m.init(64);
+fn make_bmp_file(size: u32, length: f64, x: f64, y:f64, threshold:f64,bits_per_color:u32, text:bool) {
+  let mut m = Mandelbrot::new(size,length,x,y,threshold,bits_per_color);
+  m.init();
 
-    let size = m.pixels_per_side;
+  let size = m.pixels_per_side;
 
-    // Color Mandelbrot;
-    color_image(&mut m);
+  // Color Mandelbrot;
+  color_image(&mut m);
 
-    //Text Output
+  //Text Output
+  if text {
     print_image(&mut m);
-
+  }
+  else {
     // BMP
     let mut img = Image::new(size,size);
     for (x, y) in img.coordinates() {
-        let index = (y*size + x) as usize;
-        img.set_pixel(x, y, Pixel::new(
-            m.pixels[index].red, 
-            m.pixels[index].green, 
-            m.pixels[index].blue));
+      let index = (y*size + x) as usize;
+      img.set_pixel(x, y, Pixel::new(
+          m.pixels[index].red, 
+          m.pixels[index].green, 
+          m.pixels[index].blue));
     }
-
     let _ = img.save("img.bmp");
+  }
 }
 
 fn main() {
-    println!("Mandelbrot Rust");
-    //let data: Value = serde_hjson::from_str("{width: 100, height: 100 }").unwrap();
-    //println!("data: {:?}", data);
-    //println!("object? {}", data.is_object());
+/// Mandelbrot Drawing Program
+/// * Configurable Position
+/// * Outputs BMP
+  let mut pixels: u32 = 512;
+  let mut length : f64 = 3.0;
+  let mut xpos : f64 = 0.5;
+  let mut ypos : f64 = 0.0;
+  let mut threshold: f64 = 1000.0;
+  let mut bits_per_color: u32 = 4;
+  let mut is_verbose: bool = false;
+  let mut is_text: bool = false;
+  let matches = App::new("Mandelbrot Drawer")
+    .version(crate_version!())
+    .author("Written by: Craig Warner")
+    .about(
+      "A program to draw Mandelbort Images.  It outputs these
+images in BMP format and text.\n"
+    )
+    .arg(Arg::with_name("PIXELS")
+      .long("pixels")
+      .short("p")
+      .multiple(true)
+      .help("Pixels in Size")
+      .takes_value(true)
+      .default_value("512")
+    )
+    .arg(Arg::with_name("LENGTH")
+      .long("length")
+      .short("l")
+      .multiple(true)
+      .help("Length on Numberical Span for Mandelbort image")
+      .takes_value(true)
+      .default_value("3.0")
+    )
+    .arg(Arg::with_name("XPOS")
+      .long("xpos")
+      .short("x")
+      .multiple(true)
+      .help("Numerical X Position (Center of Image)")
+      .takes_value(true)
+      .default_value("0.5")
+    )
+    .arg(Arg::with_name("YPOS")
+      .long("ypos")
+      .short("y")
+      .multiple(true)
+      .help("Numerical Y Position (Center of Image)")
+      .takes_value(true)
+      .default_value("0.0")
+    )
+    .arg(Arg::with_name("THRESHOLD")
+      .long("threshold")
+      .short("t")
+      .multiple(true)
+      .help("Numerical Thershold for Mandelbrot Convergence )")
+      .takes_value(true)
+      .default_value("1000.0")
+    )
+    .arg(Arg::with_name("BITSPERCOLOR")
+      .long("bits_per_color")
+      .short("b")
+      .multiple(true)
+      .help("Number of bits per color)")
+      .takes_value(true)
+      .default_value("4")
+    )
+    .get_matches();
 
-    //let obj = data.as_object().unwrap();
-    //let width = obj.get("width").unwrap();
+  if matches.is_present("verbose") {
+    is_verbose = true;
+  }
+  if matches.is_present("text") {
+    is_text= true;
+  }
+  // Argument Parsing: pixels 
+  if let Some(input) = matches.value_of("PIXELS") {
+    match input.parse::<u32>() {
+      Ok(n) => {
+        if is_verbose {
+          println!("Pixels = {}", n);
+        }
+        pixels= n;
+      },
+      Err(_n) => {
+        eprintln!("{}Pixels not supported {}","Error:".red(),input);
+        process::exit(1) 
+      }
+    }
+  }
+  // Argument Parsing: data_patterns
+  if let Some(input) = matches.value_of("LENGTH") {
+    match input.parse::<f64>() {
+      Ok(n) => {
+        if is_verbose {
+          println!("Numerical Length= {}", n);
+        }
+        length = n;
+      },
+      Err(_n) => {
+        eprintln!("{}Length is not supported {}","Error:".red(),input);
+        process::exit(1) 
+      }
+    }
+  }
+  // Argument Parsing: XPOS 
+  if let Some(input) = matches.value_of("XPOS") {
+    match input.parse::<f64>() {
+      Ok(n) => {
+        if is_verbose {
+          println!("Numerical X = {}", n);
+        }
+        xpos= n;
+      },
+      Err(_n) => {
+        eprintln!("{}X position is not supported {}","Error:".red(), input);
+        process::exit(1) 
+      }
+    }
+  }
+  // Argument Parsing: YPOS 
+  if let Some(input) = matches.value_of("YPOS") {
+    match input.parse::<f64>() {
+      Ok(n) => {
+        if is_verbose {
+          println!("Numerical Y = {}", n);
+        }
+        ypos= n;
+      },
+      Err(_n) => {
+        eprintln!("{}Y Position is not supported {}","Error:".red(), input);
+        process::exit(1) 
+      }
+    }
+  }
+  // Argument Parsing: THRESHOLD 
+  if let Some(input) = matches.value_of("THRESHOLD") {
+    match input.parse::<f64>() {
+      Ok(n) => {
+        if is_verbose {
+          println!("Numerical Threshold= {}", n);
+        }
+        threshold= n;
+      },
+      Err(_n) => {
+        eprintln!("{}Threshold is not supported {}","Error:".red(), input);
+        process::exit(1) 
+      }
+    }
+  }
+  // Argument Parsing:  
+  if let Some(input) = matches.value_of("BITS_PER_COLOR") {
+    match input.parse::<u32>() {
+      Ok(n) => {
+        if (n > 8) || (n<2) {
+          eprintln!("{}Bits per color is not supported {}","Error:".red(),input);
+          process::exit(1) 
+        }
+        else {
+          if is_verbose {
+            println!("{} Bits per color = {}","Info:".green(), n);
+          }
+          bits_per_color= n;
+        }
+      },
+      Err(_n) => {
+        eprintln!("{}Bits per color is not supported {}","Error:".red(),input);
+        process::exit(1) 
+      }
+    }
+  }
 
-    make_bmp_file();
+  println!("{}Mandelbrot Rust","Info:".green());
+
+  // ENHANCE: Make Input a HJSON file
+  //  let data: Value = serde_hjson::from_str("{\"width\": 100, \"height\": 100 }").unwrap();
+  //  println!("data: {:?}", data);
+  //  println!("object? {}", data.is_object());
+  //
+  //  let obj = data.as_object().unwrap();
+  //  let width = obj.get("width").unwrap();
+  //
+  //  println!("Width: {}", width);
+
+    make_bmp_file(pixels,length,xpos,ypos,threshold,bits_per_color,is_text);
 
 //
 //    println!("array? {:?}", foo.as_array());

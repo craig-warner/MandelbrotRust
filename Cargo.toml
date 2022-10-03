@@ -2,6 +2,8 @@
 name = "mandelbrot_rust"
 version = "0.1.0"
 edition = "2021"
+authors = ["Craig Warner"]
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -9,3 +11,5 @@ edition = "2021"
 serde-hjson = "0.9.1"
 bmp = "0.5"
 ndarray = "0.15.6"
+clap = { version = "2.0.0"}
+colored = "2"
