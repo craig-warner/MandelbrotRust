@@ -9,7 +9,7 @@ extern crate colored; // not needed in Rust 2018
 use bmp::{Image,Pixel};
 use serde_hjson::Value;
 use clap::{crate_version,App,Arg};
-use std::process;b
+use std::process;
 use colored::*;
 //use ndarray::Array2;
 
@@ -272,7 +272,8 @@ fn print_image(m:&mut Mandelbrot) {
   }
 }
 
-fn make_bmp_file(size: u32, length: f64, x: f64, y:f64, threshold:f64,bits_per_color:u32, text:bool) {
+fn make_bmp_file(size: u32, length: f64, x: f64, y:f64, threshold:f64,
+  bits_per_color:u32, text:bool, y_pixels: u32, color_order: String, file_name:String) {
   let mut m = Mandelbrot::new(size,length,x,y,threshold,bits_per_color);
   m.init();
 
@@ -287,15 +288,78 @@ fn make_bmp_file(size: u32, length: f64, x: f64, y:f64, threshold:f64,bits_per_c
   }
   else {
     // BMP
-    let mut img = Image::new(size,size);
-    for (x, y) in img.coordinates() {
-      let index = (y*size + x) as usize;
-      img.set_pixel(x, y, Pixel::new(
-          m.pixels[index].red, 
-          m.pixels[index].green, 
-          m.pixels[index].blue));
+    let y_skip = (size - y_pixels) / 2;  // Divide by 2
+    let mut img = Image::new(size,y_pixels);
+//    for (x, y) in img.coordinates() {
+//      let index = (y*size + x) as usize;
+//      img.set_pixel(x, y, Pixel::new(
+//          m.pixels[index].red, 
+//          m.pixels[index].green, 
+//          m.pixels[index].blue));
+//   }
+    for x in 0..size {
+      for y in 0..y_pixels {
+        let index = ((y+y_skip)*size + x) as usize;
+        match color_order.as_str() {
+          "BGR" => {
+            img.set_pixel(x, y, Pixel::new(
+              m.pixels[index].blue,
+              m.pixels[index].green, 
+              m.pixels[index].red));
+          },
+          "BRG" => {
+            img.set_pixel(x, y, Pixel::new(
+              m.pixels[index].blue,
+              m.pixels[index].red, 
+              m.pixels[index].green));
+          },
+          "GBR" => {
+            img.set_pixel(x, y, Pixel::new(
+              m.pixels[index].green,
+              m.pixels[index].blue, 
+              m.pixels[index].red));
+          },
+          "GRB" => {
+            img.set_pixel(x, y, Pixel::new(
+              m.pixels[index].green,
+              m.pixels[index].red, 
+              m.pixels[index].blue));
+          },
+          "RBG" => {
+            img.set_pixel(x, y, Pixel::new(
+              m.pixels[index].red,
+              m.pixels[index].blue, 
+              m.pixels[index].green));
+          },
+          "RGB" => {
+            img.set_pixel(x, y, Pixel::new(
+              m.pixels[index].red,
+              m.pixels[index].green, 
+              m.pixels[index].blue));
+          },
+          _ => {
+            println!("Bug");
+          },
+        }
+      }
     }
-    let _ = img.save("img.bmp");
+
+    // Write the File 
+    let complete_file_name = file_name + ".bmp";
+    println!("{} Writing File:{}","Info:".green(), complete_file_name);
+    let _ = img.save(complete_file_name);
+  }
+}
+
+fn color_str (num: u32) -> String {
+  match num {
+    0 => {  String::from("BGR") },
+    1 => {  String::from("BRG") },
+    2 => {  String::from("GBR") },
+    3 => {  String::from("GRB") },
+    4 => {  String::from("RBG") },
+    5 => {  String::from("RGB") },
+    _ => {  String::from("BBB") },
   }
 }
 
@@ -311,6 +375,11 @@ fn main() {
   let mut bits_per_color: u32 = 4;
   let mut is_verbose: bool = false;
   let mut is_text: bool = false;
+//  let mut color_order = String::from("RGB");
+//  let mut color_order = String::new();
+  let mut use_color_order = String::new();
+  let mut _file_name = String::new();
+  let mut y_pixels: u32 = 512;
   let matches = App::new("Mandelbrot Drawer")
     .version(crate_version!())
     .author("Written by: Craig Warner")
@@ -354,11 +423,11 @@ images in BMP format and text.\n"
       .long("threshold")
       .short("t")
       .multiple(true)
-      .help("Numerical Thershold for Mandelbrot Convergence )")
+      .help("Numerical Thershold for Mandelbrot Convergence")
       .takes_value(true)
       .default_value("1000.0")
     )
-    .arg(Arg::with_name("BITSPERCOLOR")
+    .arg(Arg::with_name("BITS_PER_COLOR")
       .long("bits_per_color")
       .short("b")
       .multiple(true)
@@ -366,6 +435,32 @@ images in BMP format and text.\n"
       .takes_value(true)
       .default_value("4")
     )
+    .arg(Arg::with_name("COLOR_ORDER")
+      .long("color_order")
+      .short("o")
+      .multiple(true)
+      .help("Color order (RGB, GRB, etc.)")
+      .takes_value(true)
+      .default_value("BGR")
+    )
+    .arg(Arg::with_name("FILE_NAME")
+      .long("file_name")
+      .short("f")
+      .multiple(true)
+      .help("Filename")
+      .takes_value(true)
+      .default_value("img")
+    )
+    .arg(Arg::with_name("Y_PIXELS")
+      .long("y_pixels")
+      .short("s")
+      .multiple(true)
+      .help("Y Dimenstion Size (in Pixels)")
+      .takes_value(true)
+      .default_value("512")
+    )
+
+
     .get_matches();
 
   if matches.is_present("verbose") {
@@ -449,7 +544,7 @@ images in BMP format and text.\n"
       }
     }
   }
-  // Argument Parsing:  
+  // Argument Parsing: BITS_PER_COLOR 
   if let Some(input) = matches.value_of("BITS_PER_COLOR") {
     match input.parse::<u32>() {
       Ok(n) => {
@@ -471,6 +566,74 @@ images in BMP format and text.\n"
     }
   }
 
+  // Argument Parsing: Y_PIXELS 
+  if let Some(input) = matches.value_of("Y_PIXELS") {
+    match input.parse::<u32>() {
+      Ok(n) => {
+        if (n <= 0) || (n > pixels) || ((n % 2) == 1) {
+          eprintln!("{}Y Dimension Size not supported {}","Error:".red(),input);
+          process::exit(1) 
+        }
+        else {
+          if is_verbose {
+            println!("{} Y Dimension Size (in Pixels)= {}","Info:".green(), n);
+          }
+          y_pixels = n;
+        }
+      },
+      Err(_n) => {
+        eprintln!("{}Y Dimension is not supported {}","Error:".red(),input);
+        process::exit(1) 
+      }
+    }
+  }
+
+  let mut ucos = String::new();
+  let mut ucon: u32 = 0;
+  let mut uco:String = String::from("BBB");
+  let use_color_order:String = String::from("BGR");
+  println!("{}ColorOrder:{}","Info:".green(),use_color_order.as_str());
+  println!("{}ColorOrder:{}","Info:".green(),use_color_order.to_string());
+  println!("{}ColorOrder:{}","Info:".green(),use_color_order);
+  // Argument Parsing: COLOR_ORDER 
+
+  if let Some(input) = matches.value_of("COLOR_ORDER") {
+      match input {
+        "BGR" => {  let mut ucon = 0;},
+        "BRG" => {  let mut ucon = 1;},
+        "GBR" => {  let mut ucon = 2;},
+        "GRB" => {  let mut ucon = 3;},
+        "RBG" => {  let mut ucon = 4;},
+        "RGB" => {  let mut ucon = 5;},
+//      "BGR" => {  String::from("BGR")},
+//      "BRG" => {  String::from("BRG")},
+//      "GBR" => {  String::from("GBR")},
+//      "GRB" => {  String::from("GRB")},
+//      "RBG" => {  String::from("RBG")},
+//      "RGB" => {  String::from("RGB")},
+      _ => {
+        eprintln!("{}Color Order not supported {}","Error:".red(),input);
+        process::exit(1); 
+      },
+    };
+  }
+
+  //println!("{}ColorOrder:{}","Info:".green(),_use_color_order.to_string());
+  println!("{}ColorOrder:{}","Info:".green(),use_color_order.as_str());
+  println!("{}ColorOrder:{}","Info:".green(),uco.as_str());
+  println!("{}ColorOrder:{}","Info:".green(),ucon);
+  println!("{}ColorOrder:{}","Info:".green(),color_str(ucon));
+
+  // Argument Parsing:FILE_NAME 
+  let _file_name:String  = "img".to_string();
+  if let Some(input) = matches.value_of("FILE_NAME") {
+    match input {
+      _ => {  let _file_name:String = input.to_string();
+              println!("DEBUG: {}",input.to_string());
+         }
+    }
+  }
+
   println!("{}Mandelbrot Rust","Info:".green());
 
   // ENHANCE: Make Input a HJSON file
@@ -483,7 +646,8 @@ images in BMP format and text.\n"
   //
   //  println!("Width: {}", width);
 
-    make_bmp_file(pixels,length,xpos,ypos,threshold,bits_per_color,is_text);
+    make_bmp_file(pixels,length,xpos,ypos,threshold,bits_per_color,is_text,
+      y_pixels, use_color_order.to_string(), _file_name);
 
 //
 //    println!("array? {:?}", foo.as_array());
