@@ -303,39 +303,39 @@ fn make_bmp_file(size: u32, length: f64, x: f64, y:f64, threshold:f64,
         match color_order.as_str() {
           "BGR" => {
             img.set_pixel(x, y, Pixel::new(
-              m.pixels[index].blue,
+              m.pixels[index].red,
               m.pixels[index].green, 
-              m.pixels[index].red));
+              m.pixels[index].blue));
           },
           "BRG" => {
             img.set_pixel(x, y, Pixel::new(
-              m.pixels[index].blue,
+              m.pixels[index].green,
               m.pixels[index].red, 
-              m.pixels[index].green));
+              m.pixels[index].blue));
           },
           "GBR" => {
             img.set_pixel(x, y, Pixel::new(
-              m.pixels[index].green,
+              m.pixels[index].red,
               m.pixels[index].blue, 
-              m.pixels[index].red));
+              m.pixels[index].green));
           },
           "GRB" => {
             img.set_pixel(x, y, Pixel::new(
               m.pixels[index].green,
-              m.pixels[index].red, 
-              m.pixels[index].blue));
+              m.pixels[index].blue, 
+              m.pixels[index].red));
           },
           "RBG" => {
             img.set_pixel(x, y, Pixel::new(
-              m.pixels[index].red,
-              m.pixels[index].blue, 
+              m.pixels[index].blue,
+              m.pixels[index].red, 
               m.pixels[index].green));
           },
           "RGB" => {
             img.set_pixel(x, y, Pixel::new(
-              m.pixels[index].red,
+              m.pixels[index].blue,
               m.pixels[index].green, 
-              m.pixels[index].blue));
+              m.pixels[index].red));
           },
           _ => {
             println!("Bug");
@@ -351,23 +351,23 @@ fn make_bmp_file(size: u32, length: f64, x: f64, y:f64, threshold:f64,
   }
 }
 
-fn color_str (num: u32) -> String {
-  match num {
-    0 => {  String::from("BGR") },
-    1 => {  String::from("BRG") },
-    2 => {  String::from("GBR") },
-    3 => {  String::from("GRB") },
-    4 => {  String::from("RBG") },
-    5 => {  String::from("RGB") },
-    _ => {  String::from("BBB") },
-  }
-}
+//fn color_str (num: u32) -> String {
+//  match num {
+//    0 => {  String::from("BGR") },
+//    1 => {  String::from("BRG") },
+//    2 => {  String::from("GBR") },
+//    3 => {  String::from("GRB") },
+//    4 => {  String::from("RBG") },
+//    5 => {  String::from("RGB") },
+//    _ => {  String::from("BBB") },
+//  }
+//}
 
 fn main() {
 /// Mandelbrot Drawing Program
 /// * Configurable Position
 /// * Outputs BMP
-  let mut pixels: u32 = 512;
+  let mut pixels: u32 = 7680;
   let mut length : f64 = 3.0;
   let mut xpos : f64 = 0.5;
   let mut ypos : f64 = 0.0;
@@ -375,25 +375,30 @@ fn main() {
   let mut bits_per_color: u32 = 4;
   let mut is_verbose: bool = false;
   let mut is_text: bool = false;
-//  let mut color_order = String::from("RGB");
-//  let mut color_order = String::new();
-  let mut use_color_order = String::new();
-  let mut _file_name = String::new();
-  let mut y_pixels: u32 = 512;
+  let mut y_pixels: u32 = 7680;
+  let arr = [ "  A program to draw Mandelbort Images.  It outputs these images in BMP \n",
+    "format and text.\n",
+    "\n",
+    "Some Popular TV Sizes are: \n",
+    "      480p Standard  pixels: 720,  y_pixels: 480\n",
+    "      720p HD        pixels: 1280, y_pixels: 720\n",
+    "     1080p Full HD   pixels: 1920, y_pixels: 1080\n",
+    "        4k Ultra HD  pixels: 3840, y_pixels: 2160\n",
+    "        8k UHD       pixels: 7680, y_pixels: 4320\n"];
+  let about_str: String = arr.join("");
+  
   let matches = App::new("Mandelbrot Drawer")
+
     .version(crate_version!())
     .author("Written by: Craig Warner")
-    .about(
-      "A program to draw Mandelbort Images.  It outputs these
-images in BMP format and text.\n"
-    )
+    .about( about_str.as_str())
     .arg(Arg::with_name("PIXELS")
       .long("pixels")
       .short("p")
       .multiple(true)
-      .help("Pixels in Size")
+      .help("Pixels in Size (7680 for 4k TVs)")
       .takes_value(true)
-      .default_value("512")
+      .default_value("256")
     )
     .arg(Arg::with_name("LENGTH")
       .long("length")
@@ -455,9 +460,9 @@ images in BMP format and text.\n"
       .long("y_pixels")
       .short("s")
       .multiple(true)
-      .help("Y Dimenstion Size (in Pixels)")
+      .help("Y Dimenstion Size (in Pixels; (4320 for 8K TVs) )")
       .takes_value(true)
-      .default_value("512")
+      .default_value("256")
     )
 
 
@@ -588,51 +593,47 @@ images in BMP format and text.\n"
     }
   }
 
-  let mut ucos = String::new();
-  let mut ucon: u32 = 0;
-  let mut uco:String = String::from("BBB");
-  let use_color_order:String = String::from("BGR");
-  println!("{}ColorOrder:{}","Info:".green(),use_color_order.as_str());
-  println!("{}ColorOrder:{}","Info:".green(),use_color_order.to_string());
-  println!("{}ColorOrder:{}","Info:".green(),use_color_order);
+  //DEBUG
+  //println!("{}ColorOrder:{}","Info:".green(),use_color_order.as_str());
+  //println!("{}ColorOrder:{}","Info:".green(),use_color_order.to_string());
+  //println!("{}ColorOrder:{}","Info:".green(),use_color_order);
   // Argument Parsing: COLOR_ORDER 
 
-  if let Some(input) = matches.value_of("COLOR_ORDER") {
-      match input {
-        "BGR" => {  let mut ucon = 0;},
-        "BRG" => {  let mut ucon = 1;},
-        "GBR" => {  let mut ucon = 2;},
-        "GRB" => {  let mut ucon = 3;},
-        "RBG" => {  let mut ucon = 4;},
-        "RGB" => {  let mut ucon = 5;},
-//      "BGR" => {  String::from("BGR")},
-//      "BRG" => {  String::from("BRG")},
-//      "GBR" => {  String::from("GBR")},
-//      "GRB" => {  String::from("GRB")},
-//      "RBG" => {  String::from("RBG")},
-//      "RGB" => {  String::from("RGB")},
-      _ => {
-        eprintln!("{}Color Order not supported {}","Error:".red(),input);
-        process::exit(1); 
-      },
-    };
-  }
+  let use_color_order = if let Some(input) = matches.value_of("COLOR_ORDER") {
+      input.to_string()
+    }
+    else { String::from("BGR")};
 
+//  let ucon = if let Some(input) = matches.value_of("COLOR_ORDER") {
+//      match input {
+//      "BGR" => {  0},
+//      "BRG" => {  1},
+//      "GBR" => {  2},
+//      "GRB" => {  3},
+//      "RBG" => {  4},
+//      "RGB" => {  5}
+//      _ => {
+//          eprintln!("{}Color Order not supported {}","Error:".red(),input);
+//      }
+//    }
+//    else {
+//      0 //"BGR" is default
+//    };
+
+  //DEBUG
   //println!("{}ColorOrder:{}","Info:".green(),_use_color_order.to_string());
-  println!("{}ColorOrder:{}","Info:".green(),use_color_order.as_str());
-  println!("{}ColorOrder:{}","Info:".green(),uco.as_str());
-  println!("{}ColorOrder:{}","Info:".green(),ucon);
-  println!("{}ColorOrder:{}","Info:".green(),color_str(ucon));
+  //println!("{}ColorOrder:{}","Info:".green(),use_color_order.as_str());
+  //println!("{}ColorOrder:{}","Info:".green(),uco.as_str());
+  //println!("{}ColorOrder:{}","Info:".green(),ucon);
+  //println!("{}ColorOrder:{}","Info:".green(),color_str(ucon));
 
   // Argument Parsing:FILE_NAME 
-  let _file_name:String  = "img".to_string();
-  if let Some(input) = matches.value_of("FILE_NAME") {
-    match input {
-      _ => {  let _file_name:String = input.to_string();
-              println!("DEBUG: {}",input.to_string());
-         }
+  let file_name = if let Some(input) = matches.value_of("FILE_NAME") {
+      input.to_string()
     }
-  }
+    else {
+      String::from("img")
+    };
 
   println!("{}Mandelbrot Rust","Info:".green());
 
@@ -647,21 +648,6 @@ images in BMP format and text.\n"
   //  println!("Width: {}", width);
 
     make_bmp_file(pixels,length,xpos,ypos,threshold,bits_per_color,is_text,
-      y_pixels, use_color_order.to_string(), _file_name);
+      y_pixels, use_color_order, file_name);
 
-//
-//    println!("array? {:?}", foo.as_array());
-    // array? None
-//    println!("u64? {:?}", foo.as_u64());
-    // u64? Some(13u64)
-
-//    for (key, value) in obj.iter() {
-//        println!("{}: {}", key, match *value {
-//            Value::U64(v) => format!("{} (u64)", v),
-//            Value::String(ref v) => format!("{} (string)", v),
-//            _ => unreachable!(),
-//        });
-//    }
-    // bar: baz (string)
-    // foo: 13 (u64)
 }
