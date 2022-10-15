@@ -41,13 +41,14 @@ impl RGBDot{
         self.green =  g as u8; 
         self.blue = b as u8; 
     }
+    // Enhancement: Bits per color 
     pub fn set_from_u64(&mut self,color:u64) {
         self.red = ((color & 0xf) << 4) as u8;
-        self.blue = (((color>>4) & 0xf) << 4) as u8;
-        self.green = (((color>>8) & 0xf) << 4) as u8;
+        self.green = (((color>>4) & 0xf) << 4) as u8;
+        self.blue = (((color>>8) & 0xf) << 4) as u8;
     }
     pub fn log(&self) {
-      println!("dot: {} {} {}", self.red, self.blue, self.green);
+      println!("dot: r:{} g:{} b:{}", self.red, self.green, self.blue);
     }
 }
 
@@ -303,39 +304,39 @@ fn make_bmp_file(size: u32, length: f64, x: f64, y:f64, threshold:f64,
         match color_order.as_str() {
           "BGR" => {
             img.set_pixel(x, y, Pixel::new(
-              m.pixels[index].red,
+              m.pixels[index].blue,
               m.pixels[index].green, 
-              m.pixels[index].blue));
+              m.pixels[index].red));
           },
           "BRG" => {
             img.set_pixel(x, y, Pixel::new(
               m.pixels[index].green,
-              m.pixels[index].red, 
-              m.pixels[index].blue));
+              m.pixels[index].blue, 
+              m.pixels[index].red));
           },
           "GBR" => {
             img.set_pixel(x, y, Pixel::new(
-              m.pixels[index].red,
-              m.pixels[index].blue, 
+              m.pixels[index].blue,
+              m.pixels[index].red, 
               m.pixels[index].green));
           },
           "GRB" => {
             img.set_pixel(x, y, Pixel::new(
               m.pixels[index].green,
-              m.pixels[index].blue, 
-              m.pixels[index].red));
+              m.pixels[index].red, 
+              m.pixels[index].blue));
           },
           "RBG" => {
             img.set_pixel(x, y, Pixel::new(
-              m.pixels[index].blue,
-              m.pixels[index].red, 
+              m.pixels[index].red,
+              m.pixels[index].blue, 
               m.pixels[index].green));
           },
           "RGB" => {
             img.set_pixel(x, y, Pixel::new(
-              m.pixels[index].blue,
+              m.pixels[index].red,
               m.pixels[index].green, 
-              m.pixels[index].red));
+              m.pixels[index].blue));
           },
           _ => {
             println!("Bug");
